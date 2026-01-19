@@ -56,6 +56,8 @@
  let enemies = [];
  let towers = [];
  let bullets = [];
+ let enemiesKilled = 0;
+ let enemiesToKillForNextLevel = 5; // Fiender å drepe for å gå videre til neste nivå
  let gameInterval;
  let spawnInterval;
  const levels = [
@@ -78,6 +80,18 @@
      ],
      enemySpeed: 1.5,
      enemyHp: 40
+   },
+   {
+     name: "Bane 3",
+     path: [
+       {x: 0, y: 180},
+       {x: 200, y: 100},
+       {x: 400, y: 50},
+       {x: 600, y: 100},
+       {x: 800, y: 180}
+     ],
+     enemySpeed: 2,
+     enemyHp: 50
    }
  ];
  // Enemy class
@@ -118,7 +132,6 @@
      this.y = y;
      this.range = 120;
      this.cooldown = 0;
-     this.level = 1; // Added level to towers
    }
    update() {
      if (this.cooldown > 0) {
@@ -131,24 +144,16 @@
        const dist = Math.sqrt(dx * dx + dy * dy);
        if (dist < this.range) {
          bullets.push(new Bullet(this.x, this.y, enemy));
-         this.cooldown = 30; // Cooldown for shooting
+         this.cooldown = 30;
          break;
        }
      }
    }
    draw() {
-     ctx.fillStyle = this.level === 1 ? "blue" : "green"; // Different color for upgrades
+     ctx.fillStyle = "blue";
      ctx.beginPath();
      ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
      ctx.fill();
-   }
-   upgrade() {
-     if (money >= 100) {
-       this.level++;
-       this.range += 20; // Increase range for higher level
-       this.cooldown -= 5; // Faster shooting rate
-       money -= 100;
-     }
    }
  }
  // Bullet class
@@ -167,7 +172,8 @@
      if (dist < 5) {
        this.target.hp -= 10;
        if (this.target.hp <= 0) {
-         score += 10;
+         enemiesKilled++;
+         money += 20;  // Reward for killing enemies
        }
        this.dead = true;
        return;
@@ -193,6 +199,7 @@
    enemies = [];
    towers = [];
    bullets = [];
+   enemiesKilled = 0;
    document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
    spawnEnemy();
    gameInterval = setInterval(update, 1000 / 60);
@@ -200,17 +207,22 @@
  }
  // Move to the next level
  function nextLevel() {
-   currentLevel++;
-   if (currentLevel < levels.length) {
-     money += 50; // Reward for moving to next level
-     enemies = [];
-     towers = [];
-     bullets = [];
-     document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
+   if (enemiesKilled >= enemiesToKillForNextLevel) {
+     currentLevel++;
+     if (currentLevel < levels.length) {
+       enemiesToKillForNextLevel += 1;  // Increase number of kills for next level
+       enemiesKilled = 0;  // Reset enemy kill count
+       enemies = [];
+       towers = [];
+       bullets = [];
+       document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
+     } else {
+       clearInterval(gameInterval);
+       clearInterval(spawnInterval);
+       alert("Gratulerer, du har fullført alle nivåene!");
+     }
    } else {
-     clearInterval(gameInterval);
-     clearInterval(spawnInterval);
-     alert("Gratulerer, du har fullført alle nivåene!");
+     alert(`Du må drepe ${enemiesToKillForNextLevel - enemiesKilled} flere fiender før du kan gå videre!`);
    }
  }
  // Spawn an enemy
