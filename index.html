@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<title>Tower Defense</title>
+<style>
+ body {
+   background: #222;
+   color: white;
+   text-align: center;
+   font-family: Arial;
+ }
+ canvas {
+   background: #333;
+   margin-top: 10px;
+   border: 2px solid white;
+ }
+</style>
+</head>
+<body>
+<h1>Tower Defense</h1>
+<p>Klikk for å plassere tårn (koster 50)</p>
+<p id="stats"></p>
+<canvas id="game" width="800" height="400"></canvas>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let money = 100;
+let lives = 10;
+const path = [
+ {x: 0, y: 180},
+ {x: 800, y: 180}
+];
+let enemies = [];
+let towers = [];
+let bullets = [];
+class Enemy {
+ constructor() {
+   this.x = 0;
+   this.y = 180;
+   this.hp = 30;
+   this.speed = 1;
+ }
+ update() {
+   this.x += this.speed;
+   if (this.x > 800) {
+     lives--;
+     this.hp = 0;
+   }
+ }
+ draw() {
+   ctx.fillStyle = "red";
+   ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+ }
+}
+class Tower {
+ constructor(x, y) {
+   this.x = x;
+   this.y = y;
+   this.range = 120;
+   this.cooldown = 0;
+ }
+ update() {
+   if (this.cooldown > 0) {
+     this.cooldown--;
+     return;
+   }
+   for (let enemy of enemies) {
+     let dx = enemy.x - this.x;
+     let dy = enemy.y - this.y;
+     let dist = Math.sqrt(dx * dx + dy * dy);
+     if (dist < this.range) {
+       bullets.push(new Bullet(this.x, this.y, enemy));
+       this.cooldown = 30;
+       break;
+     }
+   }
+ }
+ draw() {
+   ctx.fillStyle = "blue";
+   ctx.beginPath();
+   ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
+   ctx.fill();
+ }
+}
+class Bullet {
+ constructor(x, y, target) {
+   this.x = x;
+   this.y = y;
+   this.target = target;
+   this.speed = 4;
+ }
+ update() {
+   if (!this.target
