@@ -38,15 +38,17 @@
 <h1>Tower Defense - Flere Baner</h1>
 <p>Klikk eller trykk for å plassere tårn (koster 50)</p>
 <p id="stats"></p>
+<p id="score">Poeng: 0</p>
 <button id="startGame" onclick="startGame()">Start Spill</button>
 <button id="nextLevel" onclick="nextLevel()">Neste Bane</button>
 <p id="levelInfo"></p>
-<canvas id="game" width="800" height="400"></canvas>
+<canvas id="game"></canvas>
 <script>
  const canvas = document.getElementById("game");
  const ctx = canvas.getContext("2d");
  let money = 100;
  let lives = 10;
+ let score = 0;
  let currentLevel = 0;
  let enemies = [];
  let towers = [];
@@ -149,7 +151,9 @@
      const dist = Math.sqrt(dx * dx + dy * dy);
      if (dist < 5) {
        this.target.hp -= 10;
-       if (this.target.hp <= 0) money += 10;
+       if (this.target.hp <= 0) {
+         score += 10;  // Poeng per kill
+       }
        this.dead = true;
        return;
      }
@@ -169,6 +173,7 @@
    currentLevel = 0;
    money = 100;
    lives = 10;
+   score = 0;
    enemies = [];
    towers = [];
    bullets = [];
@@ -196,7 +201,7 @@
  }
  function update() {
    ctx.clearRect(0, 0, canvas.width, canvas.height);
-   // Bane
+   // Tegn bane
    ctx.strokeStyle = "gray";
    ctx.lineWidth = 40;
    ctx.beginPath();
@@ -214,6 +219,7 @@
    towers.forEach(t => t.draw());
    bullets.forEach(b => b.draw());
    document.getElementById("stats").innerText = `Penger: ${money} | Liv: ${lives}`;
+   document.getElementById("score").innerText = `Poeng: ${score}`;
    if (lives <= 0) {
      clearInterval(gameInterval);
      clearInterval(spawnInterval);
@@ -235,4 +241,6 @@
    canvas.height = window.innerHeight - 100; // Juster høyden for å unngå overlapp
  }
  resizeCanvas(); // Kaller ved start
-</
+</script>
+</body>
+</html>
