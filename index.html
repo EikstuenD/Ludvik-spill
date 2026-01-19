@@ -32,6 +32,9 @@
    button:hover {
      background-color: #555;
    }
+   #levelInfo, #score, #stats {
+     margin: 10px 0;
+   }
 </style>
 </head>
 <body>
@@ -77,6 +80,7 @@
      enemyHp: 40
    }
  ];
+ // Enemy class
  class Enemy {
    constructor(level) {
      this.x = 0;
@@ -107,12 +111,14 @@
      ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
    }
  }
+ // Tower class
  class Tower {
    constructor(x, y) {
      this.x = x;
      this.y = y;
      this.range = 120;
      this.cooldown = 0;
+     this.level = 1; // Added level to towers
    }
    update() {
      if (this.cooldown > 0) {
@@ -125,18 +131,27 @@
        const dist = Math.sqrt(dx * dx + dy * dy);
        if (dist < this.range) {
          bullets.push(new Bullet(this.x, this.y, enemy));
-         this.cooldown = 30;
+         this.cooldown = 30; // Cooldown for shooting
          break;
        }
      }
    }
    draw() {
-     ctx.fillStyle = "blue";
+     ctx.fillStyle = this.level === 1 ? "blue" : "green"; // Different color for upgrades
      ctx.beginPath();
      ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
      ctx.fill();
    }
+   upgrade() {
+     if (money >= 100) {
+       this.level++;
+       this.range += 20; // Increase range for higher level
+       this.cooldown -= 5; // Faster shooting rate
+       money -= 100;
+     }
+   }
  }
+ // Bullet class
  class Bullet {
    constructor(x, y, target) {
      this.x = x;
@@ -152,7 +167,7 @@
      if (dist < 5) {
        this.target.hp -= 10;
        if (this.target.hp <= 0) {
-         score += 10;  // Poeng per kill
+         score += 10;
        }
        this.dead = true;
        return;
@@ -167,6 +182,7 @@
      ctx.fill();
    }
  }
+ // Start the game
  function startGame() {
    document.getElementById("startGame").style.display = "none";
    document.getElementById("nextLevel").style.display = "block";
@@ -182,10 +198,11 @@
    gameInterval = setInterval(update, 1000 / 60);
    spawnInterval = setInterval(spawnEnemy, 2000);
  }
+ // Move to the next level
  function nextLevel() {
    currentLevel++;
    if (currentLevel < levels.length) {
-     money += 50;  // Belønn spilleren med penger for å gå videre
+     money += 50; // Reward for moving to next level
      enemies = [];
      towers = [];
      bullets = [];
@@ -196,12 +213,14 @@
      alert("Gratulerer, du har fullført alle nivåene!");
    }
  }
+ // Spawn an enemy
  function spawnEnemy() {
    enemies.push(new Enemy(levels[currentLevel]));
  }
+ // Update the game state
  function update() {
    ctx.clearRect(0, 0, canvas.width, canvas.height);
-   // Tegn bane
+   // Draw the path for the level
    ctx.strokeStyle = "gray";
    ctx.lineWidth = 40;
    ctx.beginPath();
@@ -210,6 +229,7 @@
      ctx.lineTo(levels[currentLevel].path[i].x, levels[currentLevel].path[i].y);
    }
    ctx.stroke();
+   // Update and draw enemies, towers, and bullets
    enemies.forEach(e => e.update());
    towers.forEach(t => t.update());
    bullets.forEach(b => b.update());
@@ -218,29 +238,32 @@
    enemies.forEach(e => e.draw());
    towers.forEach(t => t.draw());
    bullets.forEach(b => b.draw());
+   // Display stats
    document.getElementById("stats").innerText = `Penger: ${money} | Liv: ${lives}`;
    document.getElementById("score").innerText = `Poeng: ${score}`;
+   // End the game if lives are depleted
    if (lives <= 0) {
      clearInterval(gameInterval);
      clearInterval(spawnInterval);
      alert("Game Over");
    }
  }
- canvas.addEventListener("touchstart", e => {
-   e.preventDefault(); // Forhindrer dobbelt berøring
-   if (money < 50) return;
+ // Tower placement on click (touch for mobile)
+ canvas.addEventListener("click", (e) => {
+   if (money < 50) return; // Ensure enough money to place tower
    const rect = canvas.getBoundingClientRect();
-   const x = e.touches[0].clientX - rect.left;
-   const y = e.touches[0].clientY - rect.top;
+   const x = e.clientX - rect.left;
+   const y = e.clientY - rect.top;
    towers.push(new Tower(x, y));
    money -= 50;
  });
+ // Resize canvas based on window size
  window.addEventListener("resize", resizeCanvas);
  function resizeCanvas() {
    canvas.width = window.innerWidth;
-   canvas.height = window.innerHeight - 100; // Juster høyden for å unngå overlapp
+   canvas.height = window.innerHeight - 100;
  }
- resizeCanvas(); // Kaller ved start
+ resizeCanvas(); // Set initial size
 </script>
 </body>
 </html>
