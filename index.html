@@ -65,6 +65,34 @@
       margin: 10px 0;
 
     }
+
+    .hidden {
+
+      display: none;
+
+    }
+
+    .game-over {
+
+      position: absolute;
+
+      top: 50%;
+
+      left: 50%;
+
+      transform: translate(-50%, -50%);
+
+      background-color: rgba(0, 0, 0, 0.7);
+
+      padding: 30px;
+
+      border-radius: 10px;
+
+      color: white;
+
+      font-size: 24px;
+
+    }
 </style>
 </head>
 <body>
@@ -77,6 +105,11 @@
 <p id="levelInfo"></p>
 <p id="waveInfo"></p>
 <canvas id="game"></canvas>
+<div id="gameOver" class="game-over hidden">
+<h2>Game Over</h2>
+<p>Poeng: <span id="finalScore"></span></p>
+<button onclick="restartGame()">Start på nytt</button>
+</div>
 <script>
 
   const canvas = document.getElementById("game");
@@ -105,7 +138,7 @@
 
   let spawnInterval;
 
-  let currentWave = 1;  // Track current wave
+  let currentWave = 1;
 
   const levels = [
 
@@ -123,7 +156,9 @@
 
       enemySpeed: 1,
 
-      enemyHp: 30
+      enemyHp: 30,
+
+      enemyCount: 5
 
     },
 
@@ -145,7 +180,9 @@
 
       enemySpeed: 1.5,
 
-      enemyHp: 50
+      enemyHp: 50,
+
+      enemyCount: 6
 
     },
 
@@ -169,13 +206,13 @@
 
       enemySpeed: 2,
 
-      enemyHp: 70
+      enemyHp: 70,
+
+      enemyCount: 7
 
     }
 
   ];
-
-  // Enemy class
 
   class Enemy {
 
@@ -185,9 +222,9 @@
 
       this.y = 180;
 
-      this.hp = level.enemyHp * currentWave; // Increase health per wave
+      this.hp = level.enemyHp * currentWave;
 
-      this.speed = level.enemySpeed + (currentWave - 1) * 0.2; // Increase speed per wave
+      this.speed = level.enemySpeed + (currentWave - 1) * 0.2;
 
       this.pathIndex = 0;
 
@@ -237,8 +274,6 @@
 
   }
 
-  // Tower class
-
   class Tower {
 
     constructor(x, y) {
@@ -250,6 +285,10 @@
       this.range = 120;
 
       this.cooldown = 0;
+
+      this.damage = 10;
+
+      this.upgradeLevel = 0;
 
     }
 
@@ -273,7 +312,7 @@
 
         if (dist < this.range) {
 
-          bullets.push(new Bullet(this.x, this.y, enemy));
+          bullets.push(new Bullet(this.x, this.y, enemy, this.damage));
 
           this.cooldown = 30;
 
@@ -297,13 +336,25 @@
 
     }
 
-  }
+    upgrade() {
 
-  // Bullet class
+      if (money >= 50) {
+
+        this.upgradeLevel++;
+
+        this.damage += 5;
+
+        money -= 50;
+
+      }
+
+    }
+
+  }
 
   class Bullet {
 
-    constructor(x, y, target) {
+    constructor(x, y, target, damage) {
 
       this.x = x;
 
@@ -312,6 +363,8 @@
       this.target = target;
 
       this.speed = 4;
+
+      this.damage = damage;
 
     }
 
@@ -327,13 +380,13 @@
 
       if (dist < 5) {
 
-        this.target.hp -= 10;
+        this.target.hp -= this.damage;
 
         if (this.target.hp <= 0) {
 
           enemiesKilled++;
 
-          money += Math.ceil(1 + this.target.hp / 10); // Reward increases with enemy's health
+          money += Math.ceil(1 + this.target.hp / 10);
 
         }
 
@@ -363,13 +416,13 @@
 
   }
 
-  // Start the game
-
   function startGame() {
 
     document.getElementById("startGame").style.display = "none";
 
     document.getElementById("nextLevel").style.display = "block";
+
+    document.getElementById("gameOver").classList.add("hidden");
 
     currentLevel = 0;
 
@@ -401,17 +454,15 @@
 
   }
 
-  // Move to the next level
-
   function nextLevel() {
 
     if (enemiesKilled >= enemiesToKillForNextLevel) {
 
-      currentWave++; // Increment wave number
+      currentWave++;
 
-      enemiesToKillForNextLevel += 1;  // Increase number of kills for next wave
+      enemiesToKillForNextLevel += 2;
 
-      enemiesKilled = 0;  // Reset kill count
+      enemiesKilled = 0;
 
       enemies = [];
 
@@ -431,21 +482,19 @@
 
   }
 
-  // Spawn an enemy
-
   function spawnEnemy() {
 
-    enemies.push(new Enemy(levels[currentLevel]));
+    for (let i = 0; i < levels[currentLevel].enemyCount; i++) {
+
+      enemies.push(new Enemy(levels[currentLevel]));
+
+    }
 
   }
-
-  // Update the game state
 
   function update() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw the path for the level
 
     ctx.strokeStyle = "gray";
 
@@ -463,8 +512,6 @@
 
     ctx.stroke();
 
-    // Update and draw enemies, towers, and bullets
-
     enemies.forEach(e => e.update());
 
     towers.forEach(t => t.update());
@@ -481,31 +528,41 @@
 
     bullets.forEach(b => b.draw());
 
-    // Display stats
-
     document.getElementById("stats").innerText = `Penger: ${money} | Liv: ${lives}`;
 
     document.getElementById("score").innerText = `Poeng: ${score}`;
 
-    // End the game if lives are depleted
-
     if (lives <= 0) {
 
-      clearInterval(gameInterval);
-
-      clearInterval(spawnInterval);
-
-      alert("Game Over");
+      endGame();
 
     }
 
   }
 
-  // Tower placement on click (touch for mobile)
+  function endGame() {
+
+    clearInterval(gameInterval);
+
+    clearInterval(spawnInterval);
+
+    document.getElementById("finalScore").innerText = score;
+
+    document.getElementById("gameOver").classList.remove("hidden");
+
+  }
+
+  function restartGame() {
+
+    document.getElementById("gameOver").classList.add("hidden");
+
+    startGame();
+
+  }
 
   canvas.addEventListener("click", (e) => {
 
-    if (money < 50) return; // Ensure enough money to place tower
+    if (money < 50) return;
 
     const rect = canvas.getBoundingClientRect();
 
@@ -519,8 +576,6 @@
 
   });
 
-  // Resize canvas based on window size
-
   window.addEventListener("resize", resizeCanvas);
 
   function resizeCanvas() {
@@ -531,7 +586,7 @@
 
   }
 
-  resizeCanvas(); // Set initial size
+  resizeCanvas(); 
 </script>
 </body>
 </html>
