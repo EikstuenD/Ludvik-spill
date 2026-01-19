@@ -5,36 +5,66 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tower Defense - Flere Baner</title>
 <style>
-   body {
-     background: #222;
-     color: white;
-     text-align: center;
-     font-family: Arial;
-     margin: 0;
-     padding: 0;
-   }
-   canvas {
-     background: #333;
-     margin-top: 10px;
-     border: 2px solid white;
-     display: block;
-     margin-left: auto;
-     margin-right: auto;
-   }
-   button {
-     background-color: #444;
-     border: none;
-     color: white;
-     padding: 10px;
-     font-size: 16px;
-     cursor: pointer;
-   }
-   button:hover {
-     background-color: #555;
-   }
-   #levelInfo, #score, #stats {
-     margin: 10px 0;
-   }
+
+    body {
+
+      background: #222;
+
+      color: white;
+
+      text-align: center;
+
+      font-family: Arial;
+
+      margin: 0;
+
+      padding: 0;
+
+    }
+
+    canvas {
+
+      background: #333;
+
+      margin-top: 10px;
+
+      border: 2px solid white;
+
+      display: block;
+
+      margin-left: auto;
+
+      margin-right: auto;
+
+    }
+
+    button {
+
+      background-color: #444;
+
+      border: none;
+
+      color: white;
+
+      padding: 10px;
+
+      font-size: 16px;
+
+      cursor: pointer;
+
+    }
+
+    button:hover {
+
+      background-color: #555;
+
+    }
+
+    #levelInfo, #score, #stats, #waveInfo {
+
+      margin: 10px 0;
+
+    }
 </style>
 </head>
 <body>
@@ -45,237 +75,464 @@
 <button id="startGame" onclick="startGame()">Start Spill</button>
 <button id="nextLevel" onclick="nextLevel()">Neste Bane</button>
 <p id="levelInfo"></p>
+<p id="waveInfo"></p>
 <canvas id="game"></canvas>
 <script>
- const canvas = document.getElementById("game");
- const ctx = canvas.getContext("2d");
- let money = 100;
- let lives = 10;
- let score = 0;
- let currentLevel = 0;
- let enemies = [];
- let towers = [];
- let bullets = [];
- let enemiesKilled = 0;
- let enemiesToKillForNextLevel = 5; // Fiender å drepe for å gå videre til neste nivå
- let gameInterval;
- let spawnInterval;
- const levels = [
-   {
-     name: "Bane 1",
-     path: [
-       {x: 0, y: 180},
-       {x: 800, y: 180}
-     ],
-     enemySpeed: 1,
-     enemyHp: 30
-   },
-   {
-     name: "Bane 2",
-     path: [
-       {x: 0, y: 180},
-       {x: 200, y: 100},
-       {x: 600, y: 100},
-       {x: 800, y: 180}
-     ],
-     enemySpeed: 1.5,
-     enemyHp: 40
-   },
-   {
-     name: "Bane 3",
-     path: [
-       {x: 0, y: 180},
-       {x: 200, y: 100},
-       {x: 400, y: 50},
-       {x: 600, y: 100},
-       {x: 800, y: 180}
-     ],
-     enemySpeed: 2,
-     enemyHp: 50
-   }
- ];
- // Enemy class
- class Enemy {
-   constructor(level) {
-     this.x = 0;
-     this.y = 180;
-     this.hp = level.enemyHp;
-     this.speed = level.enemySpeed;
-     this.pathIndex = 0;
-     this.path = level.path;
-   }
-   update() {
-     const target = this.path[this.pathIndex];
-     const dx = target.x - this.x;
-     const dy = target.y - this.y;
-     const dist = Math.sqrt(dx * dx + dy * dy);
-     if (dist < this.speed) {
-       this.pathIndex++;
-       if (this.pathIndex >= this.path.length) {
-         lives--;
-         this.hp = 0;
-       }
-     } else {
-       this.x += dx / dist * this.speed;
-       this.y += dy / dist * this.speed;
-     }
-   }
-   draw() {
-     ctx.fillStyle = "red";
-     ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
-   }
- }
- // Tower class
- class Tower {
-   constructor(x, y) {
-     this.x = x;
-     this.y = y;
-     this.range = 120;
-     this.cooldown = 0;
-   }
-   update() {
-     if (this.cooldown > 0) {
-       this.cooldown--;
-       return;
-     }
-     for (let enemy of enemies) {
-       const dx = enemy.x - this.x;
-       const dy = enemy.y - this.y;
-       const dist = Math.sqrt(dx * dx + dy * dy);
-       if (dist < this.range) {
-         bullets.push(new Bullet(this.x, this.y, enemy));
-         this.cooldown = 30;
-         break;
-       }
-     }
-   }
-   draw() {
-     ctx.fillStyle = "blue";
-     ctx.beginPath();
-     ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
-     ctx.fill();
-   }
- }
- // Bullet class
- class Bullet {
-   constructor(x, y, target) {
-     this.x = x;
-     this.y = y;
-     this.target = target;
-     this.speed = 4;
-   }
-   update() {
-     if (!this.target || this.target.hp <= 0) return;
-     const dx = this.target.x - this.x;
-     const dy = this.target.y - this.y;
-     const dist = Math.sqrt(dx * dx + dy * dy);
-     if (dist < 5) {
-       this.target.hp -= 10;
-       if (this.target.hp <= 0) {
-         enemiesKilled++;
-         money += 20;  // Reward for killing enemies
-       }
-       this.dead = true;
-       return;
-     }
-     this.x += dx / dist * this.speed;
-     this.y += dy / dist * this.speed;
-   }
-   draw() {
-     ctx.fillStyle = "yellow";
-     ctx.beginPath();
-     ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
-     ctx.fill();
-   }
- }
- // Start the game
- function startGame() {
-   document.getElementById("startGame").style.display = "none";
-   document.getElementById("nextLevel").style.display = "block";
-   currentLevel = 0;
-   money = 100;
-   lives = 10;
-   score = 0;
-   enemies = [];
-   towers = [];
-   bullets = [];
-   enemiesKilled = 0;
-   document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
-   spawnEnemy();
-   gameInterval = setInterval(update, 1000 / 60);
-   spawnInterval = setInterval(spawnEnemy, 2000);
- }
- // Move to the next level
- function nextLevel() {
-   if (enemiesKilled >= enemiesToKillForNextLevel) {
-     currentLevel++;
-     if (currentLevel < levels.length) {
-       enemiesToKillForNextLevel += 1;  // Increase number of kills for next level
-       enemiesKilled = 0;  // Reset enemy kill count
-       enemies = [];
-       towers = [];
-       bullets = [];
-       document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
-     } else {
-       clearInterval(gameInterval);
-       clearInterval(spawnInterval);
-       alert("Gratulerer, du har fullført alle nivåene!");
-     }
-   } else {
-     alert(`Du må drepe ${enemiesToKillForNextLevel - enemiesKilled} flere fiender før du kan gå videre!`);
-   }
- }
- // Spawn an enemy
- function spawnEnemy() {
-   enemies.push(new Enemy(levels[currentLevel]));
- }
- // Update the game state
- function update() {
-   ctx.clearRect(0, 0, canvas.width, canvas.height);
-   // Draw the path for the level
-   ctx.strokeStyle = "gray";
-   ctx.lineWidth = 40;
-   ctx.beginPath();
-   ctx.moveTo(levels[currentLevel].path[0].x, levels[currentLevel].path[0].y);
-   for (let i = 1; i < levels[currentLevel].path.length; i++) {
-     ctx.lineTo(levels[currentLevel].path[i].x, levels[currentLevel].path[i].y);
-   }
-   ctx.stroke();
-   // Update and draw enemies, towers, and bullets
-   enemies.forEach(e => e.update());
-   towers.forEach(t => t.update());
-   bullets.forEach(b => b.update());
-   enemies = enemies.filter(e => e.hp > 0);
-   bullets = bullets.filter(b => !b.dead);
-   enemies.forEach(e => e.draw());
-   towers.forEach(t => t.draw());
-   bullets.forEach(b => b.draw());
-   // Display stats
-   document.getElementById("stats").innerText = `Penger: ${money} | Liv: ${lives}`;
-   document.getElementById("score").innerText = `Poeng: ${score}`;
-   // End the game if lives are depleted
-   if (lives <= 0) {
-     clearInterval(gameInterval);
-     clearInterval(spawnInterval);
-     alert("Game Over");
-   }
- }
- // Tower placement on click (touch for mobile)
- canvas.addEventListener("click", (e) => {
-   if (money < 50) return; // Ensure enough money to place tower
-   const rect = canvas.getBoundingClientRect();
-   const x = e.clientX - rect.left;
-   const y = e.clientY - rect.top;
-   towers.push(new Tower(x, y));
-   money -= 50;
- });
- // Resize canvas based on window size
- window.addEventListener("resize", resizeCanvas);
- function resizeCanvas() {
-   canvas.width = window.innerWidth;
-   canvas.height = window.innerHeight - 100;
- }
- resizeCanvas(); // Set initial size
+
+  const canvas = document.getElementById("game");
+
+  const ctx = canvas.getContext("2d");
+
+  let money = 100;
+
+  let lives = 10;
+
+  let score = 0;
+
+  let currentLevel = 0;
+
+  let enemies = [];
+
+  let towers = [];
+
+  let bullets = [];
+
+  let enemiesKilled = 0;
+
+  let enemiesToKillForNextLevel = 5;
+
+  let gameInterval;
+
+  let spawnInterval;
+
+  let currentWave = 1;  // Track current wave
+
+  const levels = [
+
+    {
+
+      name: "Bane 1",
+
+      path: [
+
+        {x: 0, y: 180},
+
+        {x: 800, y: 180}
+
+      ],
+
+      enemySpeed: 1,
+
+      enemyHp: 30
+
+    },
+
+    {
+
+      name: "Bane 2",
+
+      path: [
+
+        {x: 0, y: 180},
+
+        {x: 200, y: 100},
+
+        {x: 600, y: 100},
+
+        {x: 800, y: 180}
+
+      ],
+
+      enemySpeed: 1.5,
+
+      enemyHp: 50
+
+    },
+
+    {
+
+      name: "Bane 3",
+
+      path: [
+
+        {x: 0, y: 180},
+
+        {x: 200, y: 100},
+
+        {x: 400, y: 50},
+
+        {x: 600, y: 100},
+
+        {x: 800, y: 180}
+
+      ],
+
+      enemySpeed: 2,
+
+      enemyHp: 70
+
+    }
+
+  ];
+
+  // Enemy class
+
+  class Enemy {
+
+    constructor(level) {
+
+      this.x = 0;
+
+      this.y = 180;
+
+      this.hp = level.enemyHp * currentWave; // Increase health per wave
+
+      this.speed = level.enemySpeed + (currentWave - 1) * 0.2; // Increase speed per wave
+
+      this.pathIndex = 0;
+
+      this.path = level.path;
+
+    }
+
+    update() {
+
+      const target = this.path[this.pathIndex];
+
+      const dx = target.x - this.x;
+
+      const dy = target.y - this.y;
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < this.speed) {
+
+        this.pathIndex++;
+
+        if (this.pathIndex >= this.path.length) {
+
+          lives--;
+
+          this.hp = 0;
+
+        }
+
+      } else {
+
+        this.x += dx / dist * this.speed;
+
+        this.y += dy / dist * this.speed;
+
+      }
+
+    }
+
+    draw() {
+
+      ctx.fillStyle = "red";
+
+      ctx.fillRect(this.x - 10, this.y - 10, 20, 20);
+
+    }
+
+  }
+
+  // Tower class
+
+  class Tower {
+
+    constructor(x, y) {
+
+      this.x = x;
+
+      this.y = y;
+
+      this.range = 120;
+
+      this.cooldown = 0;
+
+    }
+
+    update() {
+
+      if (this.cooldown > 0) {
+
+        this.cooldown--;
+
+        return;
+
+      }
+
+      for (let enemy of enemies) {
+
+        const dx = enemy.x - this.x;
+
+        const dy = enemy.y - this.y;
+
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < this.range) {
+
+          bullets.push(new Bullet(this.x, this.y, enemy));
+
+          this.cooldown = 30;
+
+          break;
+
+        }
+
+      }
+
+    }
+
+    draw() {
+
+      ctx.fillStyle = "blue";
+
+      ctx.beginPath();
+
+      ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
+
+      ctx.fill();
+
+    }
+
+  }
+
+  // Bullet class
+
+  class Bullet {
+
+    constructor(x, y, target) {
+
+      this.x = x;
+
+      this.y = y;
+
+      this.target = target;
+
+      this.speed = 4;
+
+    }
+
+    update() {
+
+      if (!this.target || this.target.hp <= 0) return;
+
+      const dx = this.target.x - this.x;
+
+      const dy = this.target.y - this.y;
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 5) {
+
+        this.target.hp -= 10;
+
+        if (this.target.hp <= 0) {
+
+          enemiesKilled++;
+
+          money += Math.ceil(1 + this.target.hp / 10); // Reward increases with enemy's health
+
+        }
+
+        this.dead = true;
+
+        return;
+
+      }
+
+      this.x += dx / dist * this.speed;
+
+      this.y += dy / dist * this.speed;
+
+    }
+
+    draw() {
+
+      ctx.fillStyle = "yellow";
+
+      ctx.beginPath();
+
+      ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+
+      ctx.fill();
+
+    }
+
+  }
+
+  // Start the game
+
+  function startGame() {
+
+    document.getElementById("startGame").style.display = "none";
+
+    document.getElementById("nextLevel").style.display = "block";
+
+    currentLevel = 0;
+
+    money = 100;
+
+    lives = 10;
+
+    score = 0;
+
+    enemies = [];
+
+    towers = [];
+
+    bullets = [];
+
+    enemiesKilled = 0;
+
+    currentWave = 1;
+
+    document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
+
+    document.getElementById("waveInfo").innerText = `Bølge: ${currentWave}`;
+
+    spawnEnemy();
+
+    gameInterval = setInterval(update, 1000 / 60);
+
+    spawnInterval = setInterval(spawnEnemy, 2000);
+
+  }
+
+  // Move to the next level
+
+  function nextLevel() {
+
+    if (enemiesKilled >= enemiesToKillForNextLevel) {
+
+      currentWave++; // Increment wave number
+
+      enemiesToKillForNextLevel += 1;  // Increase number of kills for next wave
+
+      enemiesKilled = 0;  // Reset kill count
+
+      enemies = [];
+
+      towers = [];
+
+      bullets = [];
+
+      document.getElementById("levelInfo").innerText = `Nå spiller du på: ${levels[currentLevel].name}`;
+
+      document.getElementById("waveInfo").innerText = `Bølge: ${currentWave}`;
+
+    } else {
+
+      alert(`Du må drepe ${enemiesToKillForNextLevel - enemiesKilled} flere fiender før du kan gå videre!`);
+
+    }
+
+  }
+
+  // Spawn an enemy
+
+  function spawnEnemy() {
+
+    enemies.push(new Enemy(levels[currentLevel]));
+
+  }
+
+  // Update the game state
+
+  function update() {
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the path for the level
+
+    ctx.strokeStyle = "gray";
+
+    ctx.lineWidth = 40;
+
+    ctx.beginPath();
+
+    ctx.moveTo(levels[currentLevel].path[0].x, levels[currentLevel].path[0].y);
+
+    for (let i = 1; i < levels[currentLevel].path.length; i++) {
+
+      ctx.lineTo(levels[currentLevel].path[i].x, levels[currentLevel].path[i].y);
+
+    }
+
+    ctx.stroke();
+
+    // Update and draw enemies, towers, and bullets
+
+    enemies.forEach(e => e.update());
+
+    towers.forEach(t => t.update());
+
+    bullets.forEach(b => b.update());
+
+    enemies = enemies.filter(e => e.hp > 0);
+
+    bullets = bullets.filter(b => !b.dead);
+
+    enemies.forEach(e => e.draw());
+
+    towers.forEach(t => t.draw());
+
+    bullets.forEach(b => b.draw());
+
+    // Display stats
+
+    document.getElementById("stats").innerText = `Penger: ${money} | Liv: ${lives}`;
+
+    document.getElementById("score").innerText = `Poeng: ${score}`;
+
+    // End the game if lives are depleted
+
+    if (lives <= 0) {
+
+      clearInterval(gameInterval);
+
+      clearInterval(spawnInterval);
+
+      alert("Game Over");
+
+    }
+
+  }
+
+  // Tower placement on click (touch for mobile)
+
+  canvas.addEventListener("click", (e) => {
+
+    if (money < 50) return; // Ensure enough money to place tower
+
+    const rect = canvas.getBoundingClientRect();
+
+    const x = e.clientX - rect.left;
+
+    const y = e.clientY - rect.top;
+
+    towers.push(new Tower(x, y));
+
+    money -= 50;
+
+  });
+
+  // Resize canvas based on window size
+
+  window.addEventListener("resize", resizeCanvas);
+
+  function resizeCanvas() {
+
+    canvas.width = window.innerWidth;
+
+    canvas.height = window.innerHeight - 100;
+
+  }
+
+  resizeCanvas(); // Set initial size
 </script>
 </body>
 </html>
+ 
